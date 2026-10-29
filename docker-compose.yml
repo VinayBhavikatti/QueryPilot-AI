@@ -1,0 +1,42 @@
+services:
+  mysql:
+    image: mysql:8.4
+    environment:
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-local-root-change-me}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-querypilot_demo}
+      APP_DB_USER: ${MYSQL_USER:-querypilot_readonly}
+      APP_DB_PASSWORD: ${MYSQL_PASSWORD:-local-readonly-change-me}
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "127.0.0.1", "-uroot", "-p$${MYSQL_ROOT_PASSWORD}"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    ports:
+      - "127.0.0.1:3306:3306"
+
+  app:
+    build: .
+    environment:
+      NVIDIA_API_KEY: ${NVIDIA_API_KEY:?Set NVIDIA_API_KEY in .env}
+      NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-https://integrate.api.nvidia.com/v1}
+      NVIDIA_MODEL: ${NVIDIA_MODEL:-nvidia/nemotron-3.5-lightning-30b-a3b}
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-querypilot_demo}
+      MYSQL_USER: ${MYSQL_USER:-querypilot_readonly}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD:?Set MYSQL_PASSWORD in .env}
+      MYSQL_ALLOWED_TABLES: ${MYSQL_ALLOWED_TABLES:-customers,orders,products}
+      MAX_ROWS: ${MAX_ROWS:-100}
+      QUERY_TIMEOUT_SECONDS: ${QUERY_TIMEOUT_SECONDS:-8}
+      MAX_CONVERSATION_TURNS: ${MAX_CONVERSATION_TURNS:-6}
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:8000:8000"
+
+volumes:
+  mysql_data:

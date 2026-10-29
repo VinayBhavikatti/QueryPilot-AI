@@ -1,0 +1,1094 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="QueryPilot AI — Conversational SQL analyst and data visualizer for MySQL. Ask questions in plain English, get safe SQL queries and interactive charts.">
+  <title>QueryPilot AI</title>
+
+  <!-- Impeccable Design System: Local Fonts (Alumni Sans display, Albert Sans body, JetBrains Mono code) -->
+  <style>
+    @font-face {
+      font-family: 'Alumni Sans';
+      src: url('/alumnisans.ttf') format('truetype');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'Albert Sans';
+      src: url('/albertsans.ttf') format('truetype');
+      font-weight: 100 900;
+      font-display: swap;
+    }
+    @font-face {
+      font-family: 'JetBrains Mono';
+      src: url('/jetbrainsmono.ttf') format('truetype');
+      font-weight: 100 800;
+      font-display: swap;
+    }
+  </style>
+
+  <!-- Chart.js 4 (CDN, no framework) -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+
+  <style>
+    /* ─── Impeccable Neo Kinpaku Design System Tokens ─── */
+    :root {
+      color-scheme: dark;
+
+      /* Brand */
+      --gold:           oklch(84% 0.19 80.46);
+      --gold-pale:      oklch(86% 0.07 84);
+      --gold-rich:      oklch(77% 0.13 82);
+      --gold-deep:      oklch(61% 0.085 78);
+      --gold-rule:      oklch(78% 0.12 82 / 0.35);
+      --gold-fill:      oklch(78% 0.12 82 / 0.12);
+      --patina:         oklch(70% 0.12 188);
+      --patina-text:    oklch(76% 0.088 190);
+      --patina-pale:    oklch(82% 0.07 188);
+      --patina-fill:    oklch(70% 0.12 188 / 0.12);
+      --dark-ink:       oklch(14% 0.018 95);
+
+      /* Surfaces (Lacquer) */
+      --lacquer:        oklch(7% 0.006 95);
+      --lacquer-deep:   oklch(4% 0.004 95);
+      --lacquer-raised: oklch(11% 0.006 95);
+      --graphite:       oklch(15% 0.008 95);
+      --graphite-2:     oklch(19% 0.008 95);
+
+      /* Text */
+      --champagne:      oklch(91% 0 0);
+      --text-warm:      oklch(88% 0 0);
+      --text-muted:     oklch(72% 0 0);
+      --text-faint:     oklch(62% 0 0);
+      --text-disabled:  oklch(52% 0 0);
+
+      /* Rules & edges */
+      --rule:           oklch(93% 0 0 / 0.11);
+      --rule-strong:    oklch(74% 0.09 82 / 0.5);
+      --edge:           oklch(93% 0 0 / 0.4);
+
+      /* Shadows */
+      --lift-1: 0 2px 10px oklch(0% 0 0 / 0.35);
+      --lift-2: 0 8px 28px oklch(0% 0 0 / 0.45);
+      --lift-3: 0 20px 60px oklch(0% 0 0 / 0.55);
+
+      /* Radius */
+      --r-xs: 2px;
+      --r-sm: 4px;
+      --r-md: 6px;
+      --r-lg: 10px;
+      --r-xl: 14px;
+      --r-pill: 999px;
+
+      /* Typography */
+      --font-display: 'Alumni Sans', 'Albert Sans', Arial, sans-serif;
+      --font-body:    'Albert Sans', 'Avenir Next', 'Helvetica Neue', Arial, system-ui, sans-serif;
+      --font-mono:    'JetBrains Mono', 'SFMono-Regular', 'Roboto Mono', Consolas, monospace;
+
+      /* Motion */
+      --ease: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ─── Reset & Base ─── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html {
+      background: var(--lacquer-deep);
+      color: var(--text-warm);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.7;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    body {
+      min-height: 100dvh;
+      background:
+        radial-gradient(ellipse 80% 50% at 0% 0%, oklch(12% 0.04 80 / 0.35) 0%, transparent 65%),
+        radial-gradient(ellipse 60% 40% at 100% 100%, oklch(10% 0.06 190 / 0.2) 0%, transparent 60%),
+        var(--lacquer);
+    }
+
+    /* ─── Top Nav / Header Bar ─── */
+    .topbar {
+      position: sticky;
+      top: 0;
+      z-index: 40;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 clamp(16px, 4vw, 48px);
+      height: 60px;
+      background: oklch(7% 0.006 95 / 0.85);
+      backdrop-filter: blur(16px) saturate(1.5);
+      border-bottom: 1px solid var(--rule);
+      gap: 16px;
+    }
+
+    .wordmark {
+      font-family: var(--font-display);
+      font-size: 1.125rem;
+      font-weight: 400;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      color: var(--champagne);
+      line-height: 1;
+      white-space: nowrap;
+    }
+    .wordmark strong {
+      color: var(--gold);
+      font-weight: 500;
+    }
+
+    .topbar-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .status-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: 0.6875rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.08em;
+      color: var(--text-muted);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+      padding: 5px 12px;
+    }
+    .status-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--patina);
+      box-shadow: 0 0 6px var(--patina);
+      flex-shrink: 0;
+    }
+    .status-dot.gold { background: var(--gold); box-shadow: 0 0 6px var(--gold); }
+    .status-dot.danger { background: #ef4444; box-shadow: 0 0 6px #ef4444; }
+
+    /* ─── Hero Section ─── */
+    .hero {
+      padding: clamp(56px, 9vw, 104px) clamp(16px, 4vw, 48px) 0;
+      max-width: 1100px;
+      margin: 0 auto;
+    }
+
+    .eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--patina-text);
+      margin-bottom: 20px;
+    }
+
+    h1 {
+      font-family: var(--font-display);
+      font-size: clamp(3.2rem, 6.5vw, 5.6rem);
+      font-weight: 100;
+      letter-spacing: -0.01em;
+      line-height: 1.02;
+      color: var(--champagne);
+      max-width: 860px;
+      margin-bottom: 24px;
+    }
+    h1 .gold-text {
+      color: var(--gold);
+      font-weight: 200;
+    }
+
+    .hero-sub {
+      font-size: 1rem;
+      color: var(--text-muted);
+      max-width: 640px;
+      line-height: 1.75;
+      margin-bottom: 36px;
+    }
+
+    /* ─── Feature Chips ─── */
+    .feature-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+      margin-bottom: 48px;
+    }
+    .feature-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 0.6875rem;
+      font-family: var(--font-mono);
+      letter-spacing: 0.06em;
+      color: var(--text-faint);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+      padding: 4px 10px;
+      background: oklch(11% 0.006 95 / 0.5);
+    }
+    .feature-chip .dot {
+      width: 5px;
+      height: 5px;
+      border-radius: 50%;
+      background: var(--gold-rule);
+    }
+
+    /* ─── Main Canvas ─── */
+    .canvas {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 clamp(16px, 4vw, 48px) 100px;
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    /* ─── Input Card ─── */
+    .input-card {
+      background: var(--lacquer-raised);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-xl);
+      box-shadow: var(--lift-2);
+      overflow: hidden;
+    }
+
+    .input-card-inner {
+      padding: 20px 22px 0;
+    }
+
+    .sample-prompts {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-bottom: 16px;
+    }
+    .prompt-chip {
+      all: unset;
+      cursor: pointer;
+      font-family: var(--font-body);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+      padding: 5px 12px;
+      background: var(--lacquer-deep);
+      transition: border-color 0.15s var(--ease), color 0.15s var(--ease), background 0.15s var(--ease);
+      white-space: nowrap;
+    }
+    .prompt-chip:hover {
+      border-color: var(--gold-rule);
+      color: var(--gold);
+      background: var(--gold-fill);
+    }
+
+    .textarea-wrap {
+      position: relative;
+    }
+    textarea#question {
+      all: unset;
+      display: block;
+      width: 100%;
+      min-height: 96px;
+      resize: none;
+      font-family: var(--font-body);
+      font-size: 1rem;
+      color: var(--champagne);
+      line-height: 1.65;
+      padding: 0;
+    }
+    textarea#question::placeholder { color: var(--text-disabled); }
+
+    .input-toolbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      padding: 14px 22px 16px;
+      border-top: 1px solid var(--rule);
+      margin-top: 14px;
+    }
+    .input-hint {
+      font-size: 0.6875rem;
+      font-family: var(--font-mono);
+      color: var(--text-disabled);
+      letter-spacing: 0.04em;
+    }
+    kbd {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      background: var(--graphite);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-xs);
+      padding: 1px 4px;
+      color: var(--text-faint);
+    }
+
+    /* Gold CTA Button (primary from DESIGN.md) */
+    #send {
+      all: unset;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-family: var(--font-body);
+      font-size: 0.875rem;
+      font-weight: 500;
+      color: var(--dark-ink);
+      background: var(--gold);
+      border-radius: var(--r-xs);
+      padding: 10px 28px;
+      line-height: 1;
+      transition: background 0.15s var(--ease), transform 0.1s var(--ease);
+      white-space: nowrap;
+    }
+    #send:hover:not(:disabled) {
+      background: var(--gold-pale);
+      transform: translateY(-1px);
+    }
+    #send:active:not(:disabled) {
+      background: var(--gold-rich);
+      transform: none;
+    }
+    #send:disabled {
+      opacity: 0.5;
+      cursor: wait;
+    }
+
+    /* ─── Output Zone ─── */
+    #output {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 16px;
+    }
+
+    /* Hairline rule between panels */
+    .panel-rule {
+      height: 1px;
+      background: var(--rule);
+      border: 0;
+    }
+
+    /* ─── Answer Panel ─── */
+    .answer-panel {
+      background: var(--lacquer-raised);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-xl);
+      padding: 24px 26px;
+      box-shadow: var(--lift-1);
+    }
+    .panel-eyebrow {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      font-weight: 500;
+      letter-spacing: 0.22em;
+      text-transform: uppercase;
+      color: var(--patina-text);
+      margin-bottom: 12px;
+    }
+    .answer-text {
+      font-size: 1rem;
+      color: var(--champagne);
+      line-height: 1.75;
+      white-space: pre-wrap;
+    }
+
+    /* ─── Chart Panel ─── */
+    .chart-panel {
+      background: var(--lacquer-raised);
+      border: 1px solid var(--rule-strong);
+      border-radius: var(--r-xl);
+      padding: 22px 24px;
+      box-shadow: var(--lift-2);
+      position: relative;
+      overflow: hidden;
+    }
+    /* Kinpaku gold leaf texture accent on top edge */
+    .chart-panel::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold-rich) 30%, var(--gold) 50%, var(--gold-rich) 70%, transparent 100%);
+    }
+
+    .chart-panel-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 16px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .chart-title-block {}
+    .chart-title {
+      font-family: var(--font-display);
+      font-size: 1.25rem;
+      font-weight: 300;
+      color: var(--champagne);
+      line-height: 1.2;
+      letter-spacing: 0;
+    }
+
+    /* Chart Type Switcher — secondary button style */
+    .chart-switcher {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      flex-wrap: wrap;
+      flex-shrink: 0;
+    }
+    .chart-type-btn {
+      all: unset;
+      cursor: pointer;
+      font-family: var(--font-mono);
+      font-size: 0.6875rem;
+      letter-spacing: 0.06em;
+      color: var(--text-muted);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+      padding: 5px 12px;
+      background: var(--lacquer-deep);
+      transition: all 0.14s var(--ease);
+    }
+    .chart-type-btn:hover { color: var(--gold); border-color: var(--gold-rule); background: var(--gold-fill); }
+    .chart-type-btn.active {
+      color: var(--gold);
+      border-color: var(--gold-rule);
+      background: var(--gold-fill);
+      box-shadow: 0 0 0 1px var(--gold-rule) inset;
+    }
+
+    .chart-canvas-wrap {
+      position: relative;
+      height: clamp(280px, 38vh, 420px);
+    }
+
+    /* ─── Chart not-applicable notice ─── */
+    .chart-notice {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--lacquer-deep);
+      border: 1px dashed var(--rule);
+      border-radius: var(--r-lg);
+      padding: 14px 18px;
+      color: var(--text-faint);
+      font-size: 0.8125rem;
+    }
+    .chart-notice-icon {
+      font-size: 1rem;
+      flex-shrink: 0;
+      color: var(--text-disabled);
+    }
+
+    /* ─── Table Panel ─── */
+    .table-panel {
+      background: var(--lacquer-raised);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-xl);
+      padding: 22px 24px;
+      box-shadow: var(--lift-1);
+    }
+
+    .table-scroll {
+      overflow-x: auto;
+      border: 1px solid var(--rule);
+      border-radius: var(--r-lg);
+      margin-top: 14px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.8125rem;
+      text-align: left;
+    }
+    thead th {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+      color: var(--patina-text);
+      font-weight: 500;
+      padding: 10px 16px;
+      background: oklch(8% 0.006 95);
+      border-bottom: 1px solid var(--rule);
+      white-space: nowrap;
+    }
+    tbody td {
+      padding: 9px 16px;
+      border-bottom: 1px solid oklch(93% 0 0 / 0.06);
+      color: var(--text-warm);
+      vertical-align: middle;
+    }
+    tbody tr:last-child td { border-bottom: none; }
+    tbody tr:hover td { background: oklch(100% 0 0 / 0.02); }
+    td.num {
+      text-align: right;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      color: var(--champagne);
+    }
+    td.null-val {
+      color: var(--text-disabled);
+      font-style: italic;
+      font-size: 0.75rem;
+    }
+
+    /* ─── SQL Panel ─── */
+    .sql-panel {
+      background: var(--lacquer-raised);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-xl);
+      padding: 22px 24px;
+      box-shadow: var(--lift-1);
+    }
+
+    .sql-block {
+      background: var(--lacquer-deep);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-lg);
+      padding: 16px 18px;
+      margin-top: 14px;
+      overflow-x: auto;
+    }
+    pre {
+      font-family: var(--font-mono);
+      font-size: 0.8125rem;
+      line-height: 1.7;
+      color: var(--gold-pale);
+      white-space: pre-wrap;
+      margin: 0;
+    }
+
+    /* ─── Error Panel ─── */
+    .error-panel {
+      background: oklch(7% 0.006 95);
+      border: 1px solid oklch(76% 0.12 35 / 0.35);
+      border-radius: var(--r-xl);
+      padding: 22px 24px;
+    }
+    .error-panel .panel-eyebrow { color: oklch(76% 0.12 35); }
+    .error-text {
+      font-size: 0.875rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+    }
+
+    /* ─── Loading State (animated gold bar) ─── */
+    .loading-bar {
+      height: 2px;
+      background: linear-gradient(90deg, transparent 0%, var(--gold) 50%, transparent 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.2s ease infinite;
+      border-radius: var(--r-pill);
+      margin-top: 18px;
+    }
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ─── Footer ─── */
+    .page-footer {
+      padding: 0 clamp(16px, 4vw, 48px) 48px;
+      max-width: 1100px;
+      margin: -20px auto 0;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      flex-wrap: wrap;
+    }
+    .footer-chip {
+      font-family: var(--font-mono);
+      font-size: 0.625rem;
+      letter-spacing: 0.08em;
+      color: var(--text-disabled);
+      border: 1px solid var(--rule);
+      border-radius: var(--r-pill);
+      padding: 3px 9px;
+    }
+
+    /* ─── Responsive ─── */
+    @media (max-width: 640px) {
+      h1 { font-size: 2.6rem; }
+      .chart-panel-header { flex-direction: column; align-items: flex-start; }
+      .chart-canvas-wrap { height: 240px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="topbar">
+    <div class="wordmark">Query<strong>Pilot</strong></div>
+    <div class="topbar-right">
+      <div class="status-pill" id="status-pill">
+        <span class="status-dot" id="status-dot"></span>
+        <span id="status-text">Checking database…</span>
+      </div>
+    </div>
+  </header>
+
+  <!-- Hero -->
+  <section class="hero" aria-label="Application description">
+    <p class="eyebrow">Conversational SQL Analyst &amp; Visualizer</p>
+    <h1>Ask your data a <span class="gold-text">better question.</span></h1>
+    <p class="hero-sub">
+      QueryPilot translates plain English into safe MySQL queries, validates syntax through SQLGlot, executes them in a read-only transaction, and renders interactive charts and tables.
+    </p>
+    <div class="feature-row" aria-hidden="true">
+      <span class="feature-chip"><span class="dot"></span>SQLGlot AST guard</span>
+      <span class="feature-chip"><span class="dot"></span>Read-only transaction</span>
+      <span class="feature-chip"><span class="dot"></span>Chart.js visualizations</span>
+      <span class="feature-chip"><span class="dot"></span>nvidia/nemotron-3.5</span>
+    </div>
+  </section>
+
+  <!-- Main Input + Output Canvas -->
+  <main class="canvas" id="main-canvas">
+
+    <!-- Input Card -->
+    <div class="input-card" role="search" aria-label="Natural language database query">
+      <div class="input-card-inner">
+
+        <!-- Sample Prompts -->
+        <div class="sample-prompts" aria-label="Sample questions">
+          <button type="button" class="prompt-chip" data-query="Display the marks of each student in a bar chart.">Marks per student · Bar</button>
+          <button type="button" class="prompt-chip" data-query="Show the number of students in each course using a pie chart.">Students per course · Pie</button>
+          <button type="button" class="prompt-chip" data-query="Show the average marks for each course.">Average marks by course</button>
+          <button type="button" class="prompt-chip" data-query="Compare students' marks.">Compare marks</button>
+          <button type="button" class="prompt-chip" data-query="How many students are in the database?">Total count · Scalar</button>
+        </div>
+
+        <div class="textarea-wrap">
+          <textarea
+            id="question"
+            rows="4"
+            placeholder="Ask a question about your data — e.g. Show the marks of each student in a bar chart."
+            aria-label="Enter your natural language question"
+          ></textarea>
+        </div>
+      </div>
+
+      <div class="input-toolbar">
+        <span class="input-hint">Read-only SELECT · <kbd>Ctrl</kbd><kbd>Enter</kbd> to analyze</span>
+        <button type="button" id="send" aria-label="Analyze and visualize">Analyze &amp; Visualize →</button>
+      </div>
+    </div>
+
+    <!-- Dynamic output injected here -->
+    <div id="output" aria-live="polite" aria-atomic="false"></div>
+
+  </main>
+
+  <footer class="page-footer" aria-label="Application info">
+    <span class="footer-chip">Impeccable Neo Kinpaku</span>
+    <span class="footer-chip">QueryPilot AI v0.1</span>
+    <span class="footer-chip">Read-only MySQL</span>
+    <span class="footer-chip">No AI-generated chart data</span>
+  </footer>
+
+  <script>
+    'use strict';
+
+    // ── State ─────────────────────────────────────────────────────────
+    let activeChart = null;
+
+    // Impeccable-aligned chart palette: gold, patina, and supporting tones in OKLCH
+    const PALETTE = [
+      'oklch(84% 0.19 80.46)',   // kinpaku-gold
+      'oklch(70% 0.12 188)',     // verdigris-patina
+      'oklch(77% 0.13 82)',      // gold-rich
+      'oklch(82% 0.07 188)',     // patina-pale
+      'oklch(86% 0.07 84)',      // gold-pale
+      'oklch(76% 0.088 190)',    // patina-text
+      'oklch(61% 0.085 78)',     // gold-deep
+      'oklch(49% 0.08 188)',     // patina-deep
+      'oklch(91% 0 0)',          // champagne
+    ];
+
+    const PALETTE_SEMI = PALETTE.map(c => c.replace(/\)$/, ' / 0.75)'));
+    const PALETTE_FILL = PALETTE.map(c => c.replace(/\)$/, ' / 0.18)'));
+
+    const TYPE_LABELS = {
+      bar: 'Bar',
+      horizontalBar: 'Horiz. Bar',
+      line: 'Line',
+      pie: 'Pie',
+      doughnut: 'Doughnut',
+    };
+
+    // ── DOM references ────────────────────────────────────────────────
+    const $question = document.getElementById('question');
+    const $send     = document.getElementById('send');
+    const $output   = document.getElementById('output');
+
+    // ── Safe DOM helpers ──────────────────────────────────────────────
+    function el(tag, attrs = {}, ...children) {
+      const node = document.createElement(tag);
+      for (const [k, v] of Object.entries(attrs)) {
+        if (k === 'className') node.className = v;
+        else if (k === 'textContent') node.textContent = v;
+        else if (k === 'htmlFor') node.htmlFor = v;
+        else node.setAttribute(k, v);
+      }
+      for (const child of children) {
+        if (typeof child === 'string') node.appendChild(document.createTextNode(child));
+        else if (child instanceof Node) node.appendChild(child);
+      }
+      return node;
+    }
+
+    function eyebrow(text) {
+      return el('p', { className: 'panel-eyebrow', textContent: text });
+    }
+
+    // ── Build answer panel ────────────────────────────────────────────
+    function buildAnswerPanel(text) {
+      const panel = el('section', { className: 'answer-panel', 'aria-label': 'Answer' });
+      panel.appendChild(eyebrow('Answer'));
+      const body = el('div', { className: 'answer-text' });
+      body.textContent = text;
+      panel.appendChild(body);
+      return panel;
+    }
+
+    // ── Build chart panel ─────────────────────────────────────────────
+    function buildChartPanel(chartMeta) {
+      const panel = el('section', { className: 'chart-panel', 'aria-label': 'Data visualization' });
+
+      const header = el('div', { className: 'chart-panel-header' });
+
+      // Title block
+      const titleBlock = el('div', { className: 'chart-title-block' });
+      titleBlock.appendChild(eyebrow('Visualization'));
+      const titleEl = el('div', { className: 'chart-title', textContent: chartMeta.title || 'Chart' });
+      titleBlock.appendChild(titleEl);
+      header.appendChild(titleBlock);
+
+      // Chart type switcher
+      const switcher = el('div', { className: 'chart-switcher', 'aria-label': 'Chart type' });
+      let activeType = chartMeta.chart_type;
+
+      function mountChart(canvas, type) {
+        if (activeChart) { activeChart.destroy(); activeChart = null; }
+        activeChart = buildChartInstance(canvas, type, chartMeta);
+      }
+
+      chartMeta.available_types.forEach(type => {
+        const btn = el('button', {
+          type: 'button',
+          className: 'chart-type-btn' + (type === activeType ? ' active' : ''),
+          textContent: TYPE_LABELS[type] || type,
+          'aria-pressed': type === activeType ? 'true' : 'false',
+        });
+        btn.addEventListener('click', () => {
+          if (activeType === type) return;
+          activeType = type;
+          switcher.querySelectorAll('.chart-type-btn').forEach(b => {
+            b.classList.remove('active');
+            b.setAttribute('aria-pressed', 'false');
+          });
+          btn.classList.add('active');
+          btn.setAttribute('aria-pressed', 'true');
+          mountChart(canvas, type);
+        });
+        switcher.appendChild(btn);
+      });
+      header.appendChild(switcher);
+      panel.appendChild(header);
+
+      // Canvas
+      const wrap = el('div', { className: 'chart-canvas-wrap' });
+      const canvas = el('canvas', { 'aria-label': chartMeta.title || 'Chart' });
+      wrap.appendChild(canvas);
+      panel.appendChild(wrap);
+
+      // Defer chart creation until canvas is in DOM
+      requestAnimationFrame(() => mountChart(canvas, activeType));
+
+      return panel;
+    }
+
+    // ── Chart.js instance builder ─────────────────────────────────────
+    function buildChartInstance(canvas, chartType, meta) {
+      const isPie   = chartType === 'pie' || chartType === 'doughnut';
+      const isHoriz = chartType === 'horizontalBar';
+      const isLine  = chartType === 'line';
+      const chartJsType = isHoriz ? 'bar' : chartType;
+
+      // Chart.js defaults for Impeccable dark theme
+      Chart.defaults.color = 'oklch(72% 0 0)';
+      Chart.defaults.font.family = "'Albert Sans', 'Avenir Next', Arial, system-ui, sans-serif";
+      Chart.defaults.font.size = 12;
+
+      const datasets = meta.datasets.map((ds, i) => {
+        const color = PALETTE[i % PALETTE.length];
+        const semi  = PALETTE_SEMI[i % PALETTE_SEMI.length];
+        const fill  = PALETTE_FILL[i % PALETTE_FILL.length];
+
+        if (isPie) {
+          return {
+            label: ds.label,
+            data: ds.data,
+            backgroundColor: PALETTE_SEMI.slice(0, meta.labels.length),
+            borderColor: PALETTE.slice(0, meta.labels.length),
+            borderWidth: 1.5,
+            hoverOffset: 8,
+          };
+        }
+
+        return {
+          label: ds.label,
+          data: ds.data,
+          backgroundColor: isLine ? fill : semi,
+          borderColor: color,
+          borderWidth: isLine ? 2.5 : 1.5,
+          borderRadius: (!isLine && !isPie) ? 4 : 0,
+          tension: 0.38,
+          fill: isLine,
+          pointBackgroundColor: color,
+          pointBorderColor: 'oklch(7% 0.006 95)',
+          pointBorderWidth: 1.5,
+          pointRadius: isLine ? 4 : 0,
+          pointHoverRadius: 6,
+        };
+      });
+
+      const gridColor = 'oklch(93% 0 0 / 0.08)';
+      const tickColor = 'oklch(62% 0 0)';
+
+      return new Chart(canvas, {
+        type: chartJsType,
+        data: { labels: meta.labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          indexAxis: isHoriz ? 'y' : 'x',
+          animation: { duration: 480, easing: 'easeOutQuart' },
+          plugins: {
+            legend: {
+              display: isPie || meta.datasets.length > 1,
+              position: isPie ? 'right' : 'top',
+              labels: {
+                color: 'oklch(88% 0 0)',
+                font: { family: "'Albert Sans', sans-serif", size: 12, weight: '400' },
+                padding: 16,
+                boxWidth: 11,
+                boxHeight: 11,
+                borderRadius: 2,
+                useBorderRadius: true,
+              },
+            },
+            tooltip: {
+              backgroundColor: 'oklch(11% 0.006 95)',
+              titleColor: 'oklch(91% 0 0)',
+              bodyColor: 'oklch(88% 0 0)',
+              borderColor: 'oklch(78% 0.12 82 / 0.35)',
+              borderWidth: 1,
+              padding: { x: 14, y: 10 },
+              cornerRadius: 6,
+              boxPadding: 5,
+              titleFont: { family: "'Albert Sans', sans-serif", size: 12, weight: '500' },
+              bodyFont: { family: "'JetBrains Mono', monospace", size: 11 },
+            },
+          },
+          scales: isPie ? {} : {
+            x: {
+              grid: { color: gridColor, drawBorder: false },
+              ticks: {
+                color: tickColor,
+                font: { family: "'Albert Sans', sans-serif", size: 11 },
+                maxRotation: 35,
+              },
+            },
+            y: {
+              grid: { color: gridColor, drawBorder: false },
+              ticks: {
+                color: tickColor,
+                font: { family: "'Albert Sans', sans-serif", size: 11 },
+              },
+              beginAtZero: true,
+            },
+          },
+        },
+      });
+    }
+
+    // ── Build data table ──────────────────────────────────────────────
+    function buildTablePanel(columns, rows, rowCount) {
+      const panel = el('section', { className: 'table-panel', 'aria-label': 'Query results table' });
+      panel.appendChild(eyebrow(`Query Results · ${rowCount} ${rowCount === 1 ? 'row' : 'rows'}`));
+
+      const scroll = el('div', { className: 'table-scroll' });
+      const table  = el('table', { role: 'grid' });
+
+      const thead = el('thead');
+      const hrow  = el('tr');
+      columns.forEach(col => {
+        hrow.appendChild(el('th', { scope: 'col', textContent: col }));
+      });
+      thead.appendChild(hrow);
+      table.appendChild(thead);
+
+      const tbody = el('tbody');
+      rows.forEach(row => {
+        const tr = el('tr');
+        columns.forEach(col => {
+          const val = row[col];
+          const td = el('td');
+          if (val === null || val === undefined) {
+            td.textContent = 'null';
+            td.className = 'null-val';
+          } else {
+            td.textContent = String(val);
+            if (typeof val === 'number' || (!isNaN(Number(val)) && String(val).trim() !== '')) {
+              td.className = 'num';
+            }
+          }
+          tr.appendChild(td);
+        });
+        tbody.appendChild(tr);
+      });
+      table.appendChild(tbody);
+      scroll.appendChild(table);
+      panel.appendChild(scroll);
+      return panel;
+    }
+
+    // ── Build SQL panel ───────────────────────────────────────────────
+    function buildSQLPanel(sql) {
+      const panel = el('section', { className: 'sql-panel', 'aria-label': 'Generated SQL query' });
+      panel.appendChild(eyebrow('Validated SQL'));
+      const block = el('div', { className: 'sql-block' });
+      const pre = el('pre');
+      pre.textContent = sql;
+      block.appendChild(pre);
+      panel.appendChild(block);
+      return panel;
+    }
+
+    // ── Build chart-not-applicable notice ─────────────────────────────
+    function buildChartNotice(reason) {
+      const wrap = el('div', { className: 'chart-notice', role: 'status' });
+      wrap.appendChild(el('span', { className: 'chart-notice-icon', textContent: 'ℹ' }));
+      const msg = el('span');
+      msg.textContent = `Visualization not applicable: ${reason}`;
+      wrap.appendChild(msg);
+      return wrap;
+    }
+
+    // ── Build error panel ─────────────────────────────────────────────
+    function buildErrorPanel(message) {
+      const panel = el('section', { className: 'error-panel', role: 'alert' });
+      panel.appendChild(eyebrow('Unable to answer'));
+      panel.appendChild(el('p', { className: 'error-text', textContent: message }));
+      return panel;
+    }
+
+    // ── Build loading state ───────────────────────────────────────────
+    function buildLoadingPanel() {
+      const panel = el('section', { className: 'answer-panel', 'aria-busy': 'true' });
+      panel.appendChild(eyebrow('Analyzing'));
+      panel.appendChild(el('p', { className: 'answer-text', textContent: 'Generating SQL, executing query, building visualization…' }));
+      panel.appendChild(el('div', { className: 'loading-bar' }));
+      return panel;
+    }
+
+    // ── Submit handler ────────────────────────────────────────────────
+    async function submitQuery() {
+      const question = $question.value.trim();
+      if (!question) return;
+
+      // Reset
+      if (activeChart) { activeChart.destroy(); activeChart = null; }
+      $output.replaceChildren();
+      $send.disabled = true;
+      $send.textContent = 'Analyzing…';
+      $output.appendChild(buildLoadingPanel());
+
+      try {
+        const res  = await fetch('/api/chat', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ question }),
+        });
+        const data = await res.json();
+
+        if (!res.ok) throw new Error(data.detail || `Server error ${res.status}`);
+
+        // Clear loading state
+        $output.replaceChildren();
+
+        // 1. Answer
+        $output.appendChild(buildAnswerPanel(data.answer));
+
+        // 2. Chart or notice
+        if (data.chart?.suitable) {
+          $output.appendChild(buildChartPanel(data.chart));
+        } else if (data.chart?.reason) {
+          $output.appendChild(buildChartNotice(data.chart.reason));
+        }
+
+        // 3. Table
+        if (data.rows?.length) {
+          $output.appendChild(buildTablePanel(data.columns, data.rows, data.row_count));
+        }
+
+        // 4. SQL
+        if (data.sql) {
+          $output.appendChild(buildSQLPanel(data.sql));
+        }
+
+      } catch (err) {
+        $output.replaceChildren();
+        $output.appendChild(buildErrorPanel(err.message || 'Request failed.'));
+      } finally {
+        $send.disabled = false;
+        $send.textContent = 'Analyze & Visualize →';
+      }
+    }
+
+    // ── Event Listeners ───────────────────────────────────────────────
+    $send.addEventListener('click', submitQuery);
+    $question.addEventListener('keydown', e => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') submitQuery();
+    });
+    document.querySelectorAll('.prompt-chip').forEach(chip => {
+      chip.addEventListener('click', () => {
+        $question.value = chip.dataset.query;
+        submitQuery();
+      });
+    });
+    // ── Check database & backend status on load ───────────────────────
+    async function checkHealth() {
+      const dot = document.getElementById('status-dot');
+      const text = document.getElementById('status-text');
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        if (data.database_connected) {
+          dot.className = 'status-dot';
+          text.textContent = `MySQL (${data.database}) · Connected`;
+          text.title = `Connected to database: ${data.database}`;
+        } else {
+          dot.className = 'status-dot danger';
+          text.textContent = 'MySQL: Disconnected';
+          text.title = data.database_error || 'Database connection failed';
+        }
+      } catch (err) {
+        dot.className = 'status-dot danger';
+        text.textContent = 'Server unreachable';
+      }
+    }
+    checkHealth();
+  </script>
+
+</body>
+</html>
